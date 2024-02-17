@@ -8,7 +8,7 @@ from shapely import geometry  # type: ignore
 import networkx as nx  # type: ignore
 
 # TODO: use azimuth_lnglat for [lng,lat] projection, cartesian for flat
-from sidewalkify.geo.azimuth import azimuth_cartesian as azimuth
+from ..geo.azimuth import azimuth_cartesian as azimuth
 
 
 def create_graph(
@@ -30,9 +30,9 @@ def create_graph(
 
 
 def make_node(
-    coord: Tuple[float, float], precision: int
+    coord: Tuple[float, float], precision: float
 ) -> Tuple[float, float]:
-    rounded_coords = np.round(coord, precision)
+    rounded_coords = coord - np.remainder(coord, precision)
     return (rounded_coords[0], rounded_coords[1])
 
 

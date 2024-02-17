@@ -2,7 +2,7 @@ from typing import List
 
 import networkx as nx
 
-from sidewalkify.graph.find_path import find_path, Path
+from ..graph.find_path import find_path, Path
 
 
 def find_paths(G: nx.DiGraph) -> List[Path]:

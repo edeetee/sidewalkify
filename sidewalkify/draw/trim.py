@@ -3,7 +3,7 @@ from typing import Tuple
 # TODO: add shapely type hints
 from shapely.geometry import LineString  # type: ignore
 
-from sidewalkify.geo.cut import cut
+from ..geo.cut import cut
 
 
 def trim(edge1: dict, edge2: dict) -> Tuple[LineString, LineString]:
@@ -66,10 +66,15 @@ def ixn_and_trim(
         else:
             return (geom1, geom2)
     else:
+        if ixn.geom_type != "Point":
+            print(ixn)
+
         # They do intersect: trim
-        if ixn.type != "Point":
+        if ixn.geom_type == "GeometryCollection":
             # Is probably GeometryCollection
             ixn = ixn[0]
+        elif ixn.geom_type == "MultiPoint":
+            ixn = ixn.geoms[0]
 
         # Trim back first geom from its endpoint
         dist1 = geom1.project(ixn)

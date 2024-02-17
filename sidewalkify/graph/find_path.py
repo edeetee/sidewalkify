@@ -2,7 +2,7 @@ from typing import List, TypedDict
 
 import networkx as nx
 
-from sidewalkify.geo.cw_distance import cw_distance
+from ..geo.cw_distance import cw_distance
 
 
 # TODO: create more specific edge type?

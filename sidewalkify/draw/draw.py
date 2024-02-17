@@ -7,7 +7,7 @@ import geopandas as gpd  # type: ignore
 from shapely.geometry import LineString  # type: ignore
 
 from .trim import trim
-from sidewalkify.graph.find_path import Path
+from ..graph.find_path import Path
 
 
 def draw_sidewalks(
@@ -68,7 +68,7 @@ def edge_to_sidewalk_geom(edge: dict, resolution: int) -> Optional[LineString]:
 
         if geom.length <= 0:
             return None
-        elif geom.type == "MultiLineString":
+        elif geom.geom_type == "MultiLineString":
             # TODO: can this be handled more elegantly? Investigate why the
             # offset algorithm sometimes creates MultiLineStrings and handle
             # cases on a more specific basis.
