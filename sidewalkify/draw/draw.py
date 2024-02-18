@@ -11,7 +11,9 @@ from ..graph.find_path import Path
 
 
 def draw_sidewalks(
-    paths: List[Path], crs: dict = {"init": "epsg:4326"}, resolution: int = 1
+    paths: List[Path],
+    crs: dict = {"init": "epsg:4326"},
+    resolution: int = 1,
 ) -> gpd.GeoDataFrame:
     rows = []
     for path in paths:
@@ -43,11 +45,15 @@ def draw_sidewalks(
                 # TODO: log / report so users can find data errors
                 continue
 
+            edge_hash_color = hash(edge["id"]) % 16777215
+
+            color_str = "#{:06x}".format(edge_hash_color)
+
             rows.append(
                 {
+                    **{k: v for k, v in edge.items() if k not in ["sidewalk"]},
                     "geometry": edge["sidewalk"],
                     "street_id": edge["id"],
-                    "forward": edge["forward"],
                 }
             )
 

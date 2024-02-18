@@ -78,10 +78,10 @@ def ixn_and_trim(
 
         # Trim back first geom from its endpoint
         dist1 = geom1.project(ixn)
-        geom1, _ = cut(geom1, dist1)
+        geom1 = cut(geom1, dist1)[0]
 
         # Trim back second geom from its startpoint
         dist2 = geom2.project(ixn)
-        _, geom2 = cut(geom2, dist2)
+        geom2 = cut(geom2, dist2)[-1]
 
         return (geom1, geom2)

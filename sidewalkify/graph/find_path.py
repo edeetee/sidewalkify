@@ -49,7 +49,8 @@ def find_path(G: nx.DiGraph, u: str, v: str) -> Path:
                 path["cyclic"] = True
             break
 
-        v = min(successors, key=lambda x: _circular_dist(G, u_previous, u, x))
+        # calculates the node with the least angular distance
+        v = min(successors, key=lambda x: _angular_dist(G, u_previous, u, x))
 
         if G[u][v]["visited"]:
             if u == path["nodes"][0]:
@@ -63,7 +64,7 @@ def find_path(G: nx.DiGraph, u: str, v: str) -> Path:
     return path
 
 
-def _circular_dist(G: nx.DiGraph, u: str, v: str, x: str) -> float:
+def _angular_dist(G: nx.DiGraph, u: str, v: str, x: str) -> float:
     if u == x:
         # Should sort last - just make it a big int
         return 1e6

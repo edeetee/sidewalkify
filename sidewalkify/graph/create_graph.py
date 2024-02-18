@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 
 # TODO: add type hints for these libraries
 from geopandas import GeoDataFrame  # type: ignore
@@ -24,7 +24,7 @@ def create_graph(
     # The geometries sometimes have tiny end parts - get rid of those!
     gdf.geometry = gdf.geometry.simplify(simplify)
     G = nx.DiGraph()
-    gdf.apply(add_edges, axis=1, args=[G, precision])
+    gdf.apply(process_road, axis=1, args=[G, precision])
 
     return G
 
@@ -36,10 +36,33 @@ def make_node(
     return (rounded_coords[0], rounded_coords[1])
 
 
+def pairs(lst: List):
+    for i in range(1, len(lst)):
+        yield lst[i - 1], lst[i]
+
+
+def process_road(row: Series, G: nx.DiGraph, precision: int) -> None:
+    # chunk geometry into straight line segments
+
+    geo = row["geometry"]
+
+    edges = []
+
+    for pair in pairs(geo.coords):
+        segment = geometry.LineString([pair[0], pair[1]])
+        segment_row = row.copy()
+        segment_row["geometry"] = segment
+        edges.extend(generate_edges(segment_row, precision))
+
+    G.add_edges_from(edges)
+
+
 # Edges are stored as (from, to, data), where from and to are nodes.
 # az1 is the azimuth of the first segment of the geometry (point into the
 # geometry), az2 is for the last segment (pointing out of the geometry)
-def add_edges(row: Series, G: nx.DiGraph, precision: int) -> None:
+def generate_edges(
+    row: Series, precision: int
+) -> List[Tuple[float, float, dict]]:
     d_f = {
         "forward": 1,
         "geometry": row["geometry"],
@@ -67,5 +90,4 @@ def add_edges(row: Series, G: nx.DiGraph, precision: int) -> None:
 
     # FIXME: this is a very slow way to add edges - instead, use the .add_edges
     # method in batches
-    G.add_edge(u_f, v_f, **d_f)
-    G.add_edge(u_r, v_r, **d_r)
+    return [(u_f, v_f, d_f), (u_r, v_r, d_r)]
