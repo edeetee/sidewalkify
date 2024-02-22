@@ -23,7 +23,7 @@ def sidewalkify(
     gdf = gpd.read_file(infile)
     crs = gdf.crs
 
-    G = graph.create_graph(gdf, precision=precision)
+    G = graph.road_graph_with_sidewalk_metadata(gdf, precision=precision)
     paths = graph.find_paths(G)
 
     sidewalks = draw.draw_sidewalks(paths, crs=crs)

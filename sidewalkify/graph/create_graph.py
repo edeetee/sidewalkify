@@ -1,4 +1,6 @@
-from typing import List, Tuple
+from enum import Enum
+from typing import Iterable, List, Tuple
+from attr import dataclass
 
 # TODO: add type hints for these libraries
 from geopandas import GeoDataFrame  # type: ignore
@@ -8,7 +10,7 @@ from shapely import geometry  # type: ignore
 import networkx as nx  # type: ignore
 
 # TODO: use azimuth_lnglat for [lng,lat] projection, cartesian for flat
-from ..geo.azimuth import azimuth_cartesian as azimuth
+from sidewalkify.sidewalkify.geo.azimuth import azimuth_cartesian as azimuth
 
 
 def create_graph(
@@ -29,11 +31,18 @@ def create_graph(
     return G
 
 
-def make_node(
+class RoadWinding(Enum):
+    FORWARD = 1
+    BACKWARD = 2
+
+
+NodeId = Tuple[float, float]
+
+
+def round_coord(
     coord: Tuple[float, float], precision: float
 ) -> Tuple[float, float]:
-    rounded_coords = coord - np.remainder(coord, precision)
-    return (rounded_coords[0], rounded_coords[1])
+    return tuple(coord - np.remainder(coord, precision))  # type: ignore
 
 
 def pairs(lst: List):
@@ -53,6 +62,7 @@ def process_road(row: Series, G: nx.DiGraph, precision: int) -> None:
         segment_row = row.copy()
         segment_row["geometry"] = segment
         edges.extend(generate_edges(segment_row, precision))
+        edges.extend(generate_edges(segment_row, precision))
 
     G.add_edges_from(edges)
 
@@ -62,32 +72,43 @@ def process_road(row: Series, G: nx.DiGraph, precision: int) -> None:
 # geometry), az2 is for the last segment (pointing out of the geometry)
 def generate_edges(
     row: Series, precision: int
-) -> List[Tuple[float, float, dict]]:
-    d_f = {
-        "forward": 1,
-        "geometry": row["geometry"],
-        "offset": row["sw_left"],
-    }
+) -> list[tuple[NodeId, float, dict]]:
 
     geom_r = geometry.LineString(row["geometry"].coords[::-1])
-    d_r = {
-        "forward": 0,
-        "geometry": geom_r,
-        "offset": row["sw_right"],
+
+    return [
+        generate_edge(
+            row["id"],
+            RoadWinding.FORWARD,
+            row["geometry"],
+            row["sw_left"],
+            precision,
+        ),
+        generate_edge(
+            row["id"], RoadWinding.BACKWARD, geom_r, row["sw_right"], precision
+        ),
+    ]
+
+
+def generate_edge(
+    id: Iterable[object],
+    side: RoadWinding,
+    geometry: geometry.LineString,
+    offset: float,
+    precision: int,
+) -> Tuple[NodeId, NodeId, dict]:
+    data = {
+        "forward": 0 if side == RoadWinding.FORWARD else 1,
+        "side": str(side),
+        "geometry": geometry,
+        "offset": offset,
+        "visited": 0,
+        "id": id,
+        "az1": azimuth(geometry.coords[0], geometry.coords[1]),
+        "az2": azimuth(geometry.coords[-2], geometry.coords[-1]),
     }
 
-    for d in [d_f, d_r]:
-        d["visited"] = 0
-        d["id"] = row["id"]
+    u = round_coord(geometry.coords[0], precision)
+    v = round_coord(geometry.coords[-1], precision)
 
-        d["az1"] = azimuth(d["geometry"].coords[0], d["geometry"].coords[1])
-        d["az2"] = azimuth(d["geometry"].coords[-2], d["geometry"].coords[-1])
-
-    u_f = make_node(d_f["geometry"].coords[0], precision)
-    v_f = make_node(d_f["geometry"].coords[-1], precision)
-    u_r = make_node(d_r["geometry"].coords[0], precision)
-    v_r = make_node(d_r["geometry"].coords[-1], precision)
-
-    # FIXME: this is a very slow way to add edges - instead, use the .add_edges
-    # method in batches
-    return [(u_f, v_f, d_f), (u_r, v_r, d_r)]
+    return (u, v, data)
