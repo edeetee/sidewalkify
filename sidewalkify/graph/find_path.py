@@ -2,13 +2,15 @@ from typing import List, TypedDict
 
 import networkx as nx
 
+from sidewalkify.sidewalkify.graph.create_graph import Edge, NodeId
+
 from ..geo.cw_distance import cw_distance
 
 
 # TODO: create more specific edge type?
 class Path(TypedDict):
-    edges: List[dict]
-    nodes: List[str]
+    edges: List[Edge]
+    nodes: List[NodeId]
     cyclic: bool
 
 

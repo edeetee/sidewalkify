@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, TypedDict
 from attr import dataclass
 
 # TODO: add type hints for these libraries
@@ -7,14 +7,31 @@ from geopandas import GeoDataFrame  # type: ignore
 import numpy as np  # type: ignore
 from pandas import Series
 from shapely import geometry  # type: ignore
-import networkx as nx  # type: ignore
+import networkx as nx
+import shapely  # type: ignore
 
 # TODO: use azimuth_lnglat for [lng,lat] projection, cartesian for flat
 from sidewalkify.sidewalkify.geo.azimuth import azimuth_cartesian as azimuth
 
 
+class RoadWinding(Enum):
+    FORWARD = 1
+    BACKWARD = 2
+
+
+class Edge(TypedDict):
+    forward: int
+    side: RoadWinding
+    geometry: geometry.LineString
+    offset: float
+    visited: int
+    id: Iterable[object]
+    az1: float
+    az2: float
+
+
 def create_graph(
-    gdf: GeoDataFrame, precision: int = 1, simplify: float = 0.05
+    road_gdf: GeoDataFrame, precision: float = 1, simplify: float = 0.05
 ) -> nx.DiGraph:
     """Create a networkx DiGraph given a GeoDataFrame of lines. Every line will
     correspond to two directional graph edges, one forward, one reverse. The
@@ -24,16 +41,11 @@ def create_graph(
 
     """
     # The geometries sometimes have tiny end parts - get rid of those!
-    gdf.geometry = gdf.geometry.simplify(simplify)
+    road_gdf.geometry = road_gdf.geometry.simplify(simplify)
     G = nx.DiGraph()
-    gdf.apply(process_road, axis=1, args=[G, precision])
+    road_gdf.apply(process_road, axis=1, args=[G, precision])
 
     return G
-
-
-class RoadWinding(Enum):
-    FORWARD = 1
-    BACKWARD = 2
 
 
 NodeId = Tuple[float, float]
@@ -50,10 +62,12 @@ def pairs(lst: List):
         yield lst[i - 1], lst[i]
 
 
-def process_road(row: Series, G: nx.DiGraph, precision: int) -> None:
+def process_road(row: Series, G: nx.DiGraph, precision: float) -> None:
     # chunk geometry into straight line segments
 
     geo = row["geometry"]
+
+    geo = shapely.set_precision(geo, precision)
 
     edges = []
 
@@ -71,8 +85,8 @@ def process_road(row: Series, G: nx.DiGraph, precision: int) -> None:
 # az1 is the azimuth of the first segment of the geometry (point into the
 # geometry), az2 is for the last segment (pointing out of the geometry)
 def generate_edges(
-    row: Series, precision: int
-) -> list[tuple[NodeId, float, dict]]:
+    row: Series, precision: float
+) -> list[tuple[NodeId, NodeId, Edge]]:
 
     geom_r = geometry.LineString(row["geometry"].coords[::-1])
 
@@ -95,20 +109,22 @@ def generate_edge(
     side: RoadWinding,
     geometry: geometry.LineString,
     offset: float,
-    precision: int,
-) -> Tuple[NodeId, NodeId, dict]:
-    data = {
-        "forward": 0 if side == RoadWinding.FORWARD else 1,
-        "side": str(side),
-        "geometry": geometry,
-        "offset": offset,
-        "visited": 0,
-        "id": id,
-        "az1": azimuth(geometry.coords[0], geometry.coords[1]),
-        "az2": azimuth(geometry.coords[-2], geometry.coords[-1]),
-    }
+    precision: float,
+) -> Tuple[NodeId, NodeId, Edge]:
+    data = Edge(
+        {
+            "forward": 0 if side == RoadWinding.FORWARD else 1,
+            "side": side,
+            "geometry": geometry,
+            "offset": offset,
+            "visited": 0,
+            "id": id,
+            "az1": azimuth(geometry.coords[0], geometry.coords[1]),
+            "az2": azimuth(geometry.coords[-2], geometry.coords[-1]),
+        }
+    )
 
-    u = round_coord(geometry.coords[0], precision)
-    v = round_coord(geometry.coords[-1], precision)
+    u = geometry.coords[0]
+    v = geometry.coords[-1]
 
     return (u, v, data)
